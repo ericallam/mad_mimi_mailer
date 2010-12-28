@@ -12,15 +12,20 @@ class MadMimiMail
   end
 
   def deliver!(mail)
-    mail_settings = { :recipients     => extract_header(mail, :to),
-                      :raw_html       => mail.html_part.body,
-                      :raw_plain_text => mail.text_part.body}
-
-    [:name, :from, :subject, :promotion_name, :list_name, :raw_yaml].inject(mail_settings) do |hash, header_name|
+    mail_settings = { :recipients => extract_header(mail, :to)}
+    
+    mail_settings.merge(:raw_html => mail.html_part.body) if mail.html_part
+    mail_settings.merge(:raw_plain_text => mail.text_part.body) if mail.text_part
+    
+    [:from, :subject, :promotion_name, :raw_yaml].inject(mail_settings) do |hash, header_name|
       hash.merge!(header_name => extract_header(mail, header_name))
     end
-  
-    mimi_response = @_mimi.send_mail(mail_settings.merge(self.settings), {}.to_yaml)
+    
+    mail_settings = mail_settings.merge(self.settings)
+    
+    body = mail_settings.delete(:raw_yaml)
+    
+    mimi_response = @_mimi.send_mail(mail_settings, body)
 
     #FIXME: (Dirty Hack) Need access to the transaction id from the api call, so
     # we're defining a new method #transaction_id onto the mail object containing the integer value
