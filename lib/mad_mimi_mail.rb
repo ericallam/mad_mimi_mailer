@@ -33,8 +33,6 @@ class MadMimiMail
     
     mail_settings = mail_settings.merge(self.settings)
     
-    puts mail_settings.inspect
-    
     body = mail_settings.delete(:raw_yaml)
     
     mimi_response = @_mimi.send_mail(mail_settings, body)
