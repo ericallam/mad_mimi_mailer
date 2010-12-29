@@ -4,6 +4,12 @@ require 'action_mailer'
 class MadMimiMail
 
   attr_accessor :settings
+  cattr_accessor :options
+  
+  def self.options
+    @@options ||= {}
+  end
+  
   def initialize(options)
     check_api_settings
 
@@ -12,16 +18,22 @@ class MadMimiMail
   end
 
   def deliver!(mail)
-    mail_settings = { :recipients => extract_header(mail, :to)}
+    mail_settings = { :recipients => recipients(mail) }
     
     mail_settings.merge(:raw_html => mail.html_part.body) if mail.html_part
     mail_settings.merge(:raw_plain_text => mail.text_part.body) if mail.text_part
     
-    [:from, :subject, :promotion_name, :raw_yaml].inject(mail_settings) do |hash, header_name|
-      hash.merge!(header_name => extract_header(mail, header_name))
+    [:from, :subject, :promotion_name, :raw_yaml, :bcc].inject(mail_settings) do |hash, header_name|
+      if self.class.options.has_key?(header_name)
+        hash.merge!(header_name => self.class.options[header_name])
+      else
+        hash.merge!(header_name => extract_header(mail, header_name))
+      end
     end
     
     mail_settings = mail_settings.merge(self.settings)
+    
+    puts mail_settings.inspect
     
     body = mail_settings.delete(:raw_yaml)
     
@@ -38,6 +50,14 @@ class MadMimiMail
   end
 
   private
+  
+  def recipients(mail)
+    if self.class.options.has_key?(:to)
+      self.class.options[:to]
+    else
+      extract_header(mail, :to)
+    end
+  end
 
   def check_api_settings
     raise <<-ERROR_STRING.gsub(/^\s+/,'') unless has_required_api_settings?
